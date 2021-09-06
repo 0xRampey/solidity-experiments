@@ -1,0 +1,6 @@
+{
+  "devDependencies": {
+    "@openzeppelin/contracts": "^4.3.1",
+    "base64-sol": "^1.0.1"
+  }
+}
