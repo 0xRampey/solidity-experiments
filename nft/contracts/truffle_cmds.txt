@@ -1,0 +1,5 @@
+shape = await ShapeSwap.deployed()
+let svg = await fs.readFileSync("./assets/drawing.svg", { encoding: "utf8" })
+shape.initSvg(svg)
+shape.mintShape("#f00")
+shape.generateSvgFrom("#f01")
