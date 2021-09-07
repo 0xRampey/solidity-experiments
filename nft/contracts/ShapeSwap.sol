@@ -6,12 +6,16 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "base64-sol/base64.sol";
+import "./strings.sol";
 
 contract ShapeSwap is ERC721, ERC721Enumerable, Ownable {
-    // TokenIDs mapped to base64 encoded SVGs
-    mapping(uint256 => string) public tokenIdToSvg;
+    // TokenIDs mapped to color params
+    mapping(uint256 => string) public tokenIdToColor;
+    // base64 encoded SVG
+    string public svg;
     
     using Counters for Counters.Counter;
+    using strings for *;
 
     Counters.Counter private _tokenIdCounter;
     
@@ -23,14 +27,22 @@ contract ShapeSwap is ERC721, ERC721Enumerable, Ownable {
         _tokenIdCounter.increment();
     }
 
-    function mintShape(string memory svg) public onlyOwner {
-        tokenIdToSvg[_tokenIdCounter.current()] = svg;
-      safeMint(msg.sender);
+    function initSvg(string memory s) public onlyOwner {
+        svg = s;
     }
 
-    // function updateColor(hex) {
-    //     substitute fill = "" with something else
-    // }
+    function mintShape(string memory color) public onlyOwner {
+        tokenIdToColor[_tokenIdCounter.current()] = color;
+        safeMint(msg.sender);
+    }
+
+    function updateColor(uint256 tokenId, string memory color) public onlyOwner {
+        require(
+            _exists(tokenId),
+            "ERC721Metadata: URI query for nonexistent token"
+        );
+        tokenIdToColor[tokenId] = color;
+    }
 
     // You could also just upload the raw SVG and have solildity convert it!
     function svgToImageURI(string memory s) public pure returns (string memory) {
@@ -40,6 +52,13 @@ contract ShapeSwap is ERC721, ERC721Enumerable, Ownable {
         string memory baseURL = "data:image/svg+xml;base64,";
         string memory svgBase64Encoded = Base64.encode(bytes(string(abi.encodePacked(s))));
         return string(abi.encodePacked(baseURL,svgBase64Encoded));
+    }
+
+    // You could also just upload the raw SVG and have solildity convert it!
+    function generateSvgFrom(string memory color) public view returns (string memory) {
+        strings.slice memory svgSecondHalf = svg.toSlice();
+        strings.slice memory svgFirstHalf = svgSecondHalf.split("{param}".toSlice());
+        return string(abi.encodePacked(svgFirstHalf.toString(), color, svgSecondHalf.toString()));
     }
 
     function tokenURI(uint256 tokenId)
@@ -53,7 +72,7 @@ contract ShapeSwap is ERC721, ERC721Enumerable, Ownable {
             _exists(tokenId),
             "ERC721Metadata: URI query for nonexistent token"
         );
-        string memory svg = tokenIdToSvg[tokenId];
+        string memory genSvg = generateSvgFrom(tokenIdToColor[tokenId]);
         return string(
                 abi.encodePacked(
                     "data:application/json;base64,",
@@ -62,7 +81,7 @@ contract ShapeSwap is ERC721, ERC721Enumerable, Ownable {
                             abi.encodePacked(
                                 '{"name":"',
                                 "ShapeSwap", // You can add whatever name here
-                                '", "description":"Shape NFTs whose colors can be changed", "attributes":"", "image":"', svgToImageURI(svg),'"}'
+                                '", "description":"Shape NFTs whose colors can be changed", "attributes":"", "image":"', svgToImageURI(genSvg),'"}'
                             )
                         )
                     )

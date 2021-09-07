@@ -1,4 +1,3 @@
-<?xml version="1.0" encoding="UTF-8"?> 
-<svg width="210mm" height="297mm" version="1.1" viewBox="0 0 210 297" xmlns="http://www.w3.org/2000/svg">
-<ellipse transform="rotate(1.99)" cx="101" cy="71.5" rx="58" ry="50.4" fill="#f00" fill-rule="evenodd" stroke-width=".265"/>
+<?xml version="1.0" encoding="UTF-8"?> <svg width="210mm" height="297mm" version="1.1" viewBox="0 0 210 297" xmlns="http://www.w3.org/2000/svg">
+<ellipse transform="rotate(1.99)" cx="101" cy="71.5" rx="58" ry="50.4" fill="{param}" fill-rule="evenodd" stroke-width=".265"/>
 </svg>
