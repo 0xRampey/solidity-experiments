@@ -20,8 +20,9 @@ async function main() {
 	await contract.deployed();
 	console.log("Contract deployed to:", contract.address);
 
-	contract.mintNFT().then((txn) => txn.wait());
-	contract.mintNFT().then((txn) => txn.wait());
+	const txn = await contract.mintNFT();
+	const receipt = await txn.wait();
+	console.log("Used this much gas:", receipt.gasUsed.toNumber());
 }
 
 // We recommend this pattern to be able to use async/await everywhere
