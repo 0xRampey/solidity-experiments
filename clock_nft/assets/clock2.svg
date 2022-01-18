@@ -1,5 +1,6 @@
 <svg id="clock" viewBox="0 0 100 100" version="1.1" xmlns="http://www.w3.org/2000/svg">
     <style>
+        
         #face {
             stroke-width: 2px;
             stroke: #fff;
