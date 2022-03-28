@@ -23,6 +23,7 @@ async function main() {
 	const txn = await contract.mintNFT();
 	const receipt = await txn.wait();
 	console.log("Used this much gas:", receipt.gasUsed.toNumber());
+
 }
 
 // We recommend this pattern to be able to use async/await everywhere

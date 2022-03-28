@@ -36,13 +36,13 @@ const config: HardhatUserConfig = {
 					? [process.env.PRIVATE_KEY]
 					: [],
 		},
-		rinkeby: {
-			url: RINKEBY_RPC_URL,
-			// accounts: [PRIVATE_KEY],
-			accounts: {
-				mnemonic: MNEMONIC,
-			},
-		},
+		// rinkeby: {
+		// 	url: RINKEBY_RPC_URL,
+		// 	// accounts: [PRIVATE_KEY],
+		// 	accounts: {
+		// 		mnemonic: MNEMONIC,
+		// 	},
+		// },
 	},
 	gasReporter: {
 		enabled: process.env.REPORT_GAS !== undefined,

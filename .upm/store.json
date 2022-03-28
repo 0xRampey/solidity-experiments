@@ -1,0 +1,1 @@
+{"version":2,"languages":{"nodejs-npm":{"specfileHash":"df20fac554ff8c31b78e7831b4cab970","lockfileHash":"91079645648cf2c777d7bc33aee23a76","guessedImports":["hardhat-gas-reporter","solidity-coverage","ethers","hardhat","dotenv","@nomiclabs/hardhat-etherscan","@nomiclabs/hardhat-waffle","@typechain/hardhat"],"guessedImportsHash":"7d3deb75a96b07d51554131c3d70a720"}}}
