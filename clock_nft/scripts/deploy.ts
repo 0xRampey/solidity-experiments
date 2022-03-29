@@ -20,9 +20,20 @@ async function main() {
 	await contract.deployed();
 	console.log("Contract deployed to:", contract.address);
 
-	const txn = await contract.mintNFT();
-	const receipt = await txn.wait();
+  // Init base svg
+  const initTxn = await contract.initBaseSvg(['<svg width="200" height="200" version="1.1" xmlns="http://www.w3.org/2000/svg">',                                   `</svg>`])
+
+	const txn = await contract.mintNFT("Personal msg");
+	var receipt = await txn.wait();
 	console.log("Used this much gas:", receipt.gasUsed.toNumber());
+
+  const txn1 = await contract.tokenURI(0)
+	console.log("NFT:", txn1);
+
+  const upTxn = await contract.updateMessage("Updated!", 0);
+
+  const txn2 = await contract.tokenURI(0)
+	console.log("NFT:", txn2);
 
 }
 

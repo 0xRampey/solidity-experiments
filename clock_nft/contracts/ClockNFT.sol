@@ -4,23 +4,63 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "hardhat/console.sol";
+import "base64-sol/base64.sol";
 
-contract ClockNFT is ERC721URIStorage {
+// Don't think we need URIStorage module anymore
+contract ClockNFT is ERC721URIStorage, Ownable {
 	Counters.Counter private _tokenIds;
+	// TokenIDs mapped to personal messages
+    mapping(uint256 => string) public tokenIdToMessage;
+	// TokenIDs mapped to CSS stylesheetss
+	mapping(uint256 => string) public tokenIdToCSS;
+    // SVG string consisting of
+	// 1 -> SVG header
+	// 2 -> SVG content
+    string[2] public baseSvg;
 
 	constructor() ERC721("ClockNFT", "CLOCK") {
-		console.log("Hello World!");
+		console.log(block.timestamp);
 	}
 
-	function mintNFT() public {
+	function initBaseSvg(string[2] memory s) external onlyOwner {
+		baseSvg=s;
+	}
+
+	function updateMessage(string calldata s, uint256 tokenId) public {
+		require(bytes(s).length < 200, "Message too long!");
+		require(ownerOf(tokenId) == msg.sender, "Not auhtorized!" );
+		tokenIdToMessage[tokenId] = s;
+	}
+
+	// You could also just upload the raw SVG and have solildity convert it!
+    function svgToImageURI(string memory s) public pure returns (string memory) {
+        // example:
+        // '<svg width="500" height="500" viewBox="0 0 285 350" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill="black" d="M150,0,L75,200,L225,200,Z"></path></svg>'
+        // would return ""
+        string memory baseURL = "data:image/svg+xml;base64,";
+        string memory svgBase64Encoded = Base64.encode(bytes(string(abi.encodePacked(s))));
+        return string(abi.encodePacked(baseURL,svgBase64Encoded));
+    }
+
+	function assembleSvg(uint256 tokenId) public view returns (string memory) {
+		return string(abi.encodePacked(
+			baseSvg[0], // SVG header
+			"<text x=\"0\" y=\"15\" fill=\"red\">",
+			tokenIdToMessage[tokenId],
+			"</text>",
+			baseSvg[1] // Rest of the SVG content
+		));
+	}
+
+	function mintNFT(string calldata message) external onlyOwner {
+		// Make sure base SVG has been set
+		require(bytes(baseSvg[0]).length != 0, "Init base SVG!"); 
 		uint256 newTokenId = Counters.current(_tokenIds);
 		_safeMint(msg.sender, newTokenId);
-		// Set the NFTs data.
-		_setTokenURI(
-			newTokenId,
-			"data:application/json;base64,eyJuYW1lIjogIkNsb2NrIiwKImRlc2NyaXB0aW9uIjoidGljayB0b2NrIHRpY2sgdG9jay4uLi4iLCAKImltYWdlIjogImRhdGE6aW1hZ2Uvc3ZnK3htbDtiYXNlNjQsUEhOMlp5QjJhV1YzUW05NFBTSXdJREFnTmpNZ01qa2lJR1pwYkd3OUltNXZibVVpSUhodGJHNXpQU0pvZEhSd09pOHZkM2QzTG5jekxtOXlaeTh5TURBd0wzTjJaeUkrQ2p4emRIbHNaVDRLSTJGemMybHVZWFIxY21FZ2V3b2dJSE4wY205clpTMWtZWE5vWVhKeVlYazZJREkzTWpzS0lDQnpkSEp2YTJVdFpHRnphRzltWm5ObGREb2dNamN5T3dvZ0lHRnVhVzFoZEdsdmJqb2dZWE56YVc1aGRIVnlZU0EwY3lCcGJtWnBibWwwWlNCbWIzSjNZWEprY3pzS2ZRcEFhMlY1Wm5KaGJXVnpJR0Z6YzJsdVlYUjFjbUVnZXdvZ0lIUnZJSHNLSUNBZ0lITjBjbTlyWlMxa1lYTm9iMlptYzJWME9pQXdPd29nSUgwS2ZRbzhMM04wZVd4bFBnb2dJRHh3WVhSb0lHbGtQU0poYzNOcGJtRjBkWEpoSWlCa1BTSk5NUzR4TWpVZ01UWXVOelZETVM0Mk1ETXdOaUF4TlM0ME16RTNJREl1TWpnd09UTWdNVFF1TVRneE5pQXlMamszTWpJeUlERXlMamsyTlRORE5DNDFNekF5T0NBeE1DNHlNalFnTmk0eU9UZzFOeUEzTGpVd01EZzRJRGd1TXpNMk9ERWdOUzR3T1RBeU4wTTVMakEyTURjMklEUXVNak0wTURZZ01UQXVNREkwTkNBekxqRXhORFUxSURFeExqRTBNalFnTWk0M05VTXhNUzR6TWpJM0lESXVOamt4TWlBeE1TNHpNREE1SURJdU9ERTVNRFlnTVRFdU1qY3dPQ0F5TGprMk5USTNRekV4TGpFeE56VWdNeTQzTVRBM015QXhNQzQzT1RReUlEUXVORE16TlRnZ01UQXVOVEl3T0NBMUxqRXpPRGc1UXprdU5EQTJNaUE0TGpBeE5EazVJRGd1TVRZME5EY2dNVEF1T0RRek5TQTNMakV4TVRFeElERXpMamMwTXpGRE5TNDNNemMyTmlBeE55NDFNak0ySURRdU56UXhORFVnTWpFdU16a3lOU0EwTGpNd09UQXpJREkxTGpNNU5UaEROQzR5TkRFeE5pQXlOaTR3TWpReElEUXVNVGt6T0RnZ01qWXVOalV5TnlBMExqRTROelVnTWpjdU1qZzBOME0wTGpFNE56UTBJREkzTGpJNU1EZ2dOQzR4T0RjMk5pQXlOeTQyTXpZeElEUXVNakF4TXprZ01qY3VOamswTkVNMExqSXhNRFF5SURJM0xqY3pNamdnTkM0eU56WXpOeUF5Tnk0Mk5UUTBJRFF1TWpreE5qY2dNamN1TmpFNE1VTTFMakEzTURFeklESTFMamMyT1RJZ05TNDFOamtnTWpNdU56ZzNPU0EyTGpJNE9ERTVJREl4TGpreE16SkROeTQxTlRZek9DQXhPQzQyTURjMElEa3VNalF6TWlBeE5TNDFNaUF4TVM0d01qYzRJREV5TGpRMk9EZERNVEl1T0Rjd05DQTVMak14T0RJeklERTBMamsxTkRVZ05pNHdPVFF4T1NBeE55NDJPVFEwSURNdU5qTTRPRGxETVRndU9EUTJOaUF5TGpZd05qUTBJREl3TGpFNU9EUWdNUzQ0TURNMk5pQXlNUzQyTXpnNUlERXVNalF6TURWRE1qRXVOek15TlNBeExqSXdOall6SURJeUxqQTJOVGdnTVM0d01qWTFOaUF5TWk0d09UTTRJREV1TWpWRE1qSXVNVFl4TXlBeExqYzVNREEwSURJeExqZ3lPVE1nTWk0MU1qUXdNaUF5TVM0Mk16ZzVJRE5ETWpBdU5qSXlJRFV1TlRReU1qY2dNVGt1TVRjeE1pQTNMamt4TmpNeklERTNMamsyTVRnZ01UQXVNelk0TVVNeE5pNHpNVEUwSURFekxqY3hOQ0F4TkM0NU1qZzJJREUzTGpJME56TWdNVE11T1RFMk55QXlNQzQ0TkRBelF6RXpMalkzTURnZ01qRXVOekV6TVNBeE15NDBORFVnTWpJdU5UazNPU0F4TXk0eU56YzRJREl6TGpRNE9UWkRNVE11TVRrek15QXlNeTQ1TkRBeElERXpMakEzT0RjZ01qUXVORFk0TXlBeE15NHhNekU1SURJMExqa3pORU14TXk0eE5UUXpJREkxTGpFeU9UUWdNVE11TXpnNU5TQXlOUzR3TmpVMUlERXpMalV5TURnZ01qVXVNREl3T0VNeE5DNHpOalFnTWpRdU56TXpPQ0F4TlM0eE5ETTNJREkwTGpBNU56SWdNVFV1TnpZek9TQXlNeTQwTnpreVF6RTNMakkwSURJeUxqQXdPREVnTVRndU1Ua3dNaUF4T1M0NU5qWXpJREU1TGpFeU9EVWdNVGd1TVRNeE9VTXhPUzQ0T1RjMUlERTJMall5T0RRZ01qQXVOVGd3TXlBeE5DNDVPRFEySURJeExqVTBPRFlnTVRNdU5Ua3dNME15TVM0Mk5qUXlJREV6TGpReU16Z2dNakV1TXpRek5TQXhNeTQxTURFeUlESXhMakl6TmpFZ01UTXVOVU15TUM0NU16VTBJREV6TGpRNU5qY2dNakF1TmprNU1pQXhNeTQxTXpZeUlESXdMalkxTmpJZ01UTXVNakF4TkVNeU1DNDFPREUxSURFeUxqWXhPRFlnTWpBdU9UVTROQ0F4TWk0ek9ERTRJREl4TGpNNU5UZ2dNVEl1TURjMk5FTXlNUzQ0TWpBNUlERXhMamMzT1RVZ01qSXVNakUxTlNBeE1TNDFNRFk1SURJeUxqYzFNelVnTVRFdU5UQTJPVU15TXk0eE9EWTBJREV4TGpVd05qa2dNak11TlRjd05DQXhNUzQyTXpjM0lESXpMamcyTVRFZ01URXVPVFk0TjBNeU5DNHhNVEE1SURFeUxqSTFNeklnTWpRdU1UZ3lNU0F4TWk0MU9TQXlNeTQ0TVRrMElERXlMamd4TWpWRE1qTXVNRGN6T0NBeE15NHlOekF4SURJeUxqRTROek1nTVRNdU1UTXhNaUF5TVM0M09ERXlJREUwTGpBME9EWkRNakV1TlRBek1pQXhOQzQyTnpZM0lESXhMak13TlRJZ01UVXVNelExTkNBeU1TNHhNVFEySURFMkxqQXdNelZETWpBdU5qa3dNeUF4Tnk0ME5qZzBJREl3TGpBNU1URWdNVGd1T0RneE1TQXhPUzQzTkRNeElESXdMak0yT0RGRE1Ua3VOVFE1T1NBeU1TNHhPVE16SURFNUxqTXhNeUF5TWk0eU1UY3hJREU1TGpVek1USWdNak11TURZMlF6RTVMall4TnpFZ01qTXVOQ0F4T1M0NU5EZzVJREl6TGpFMU1ETWdNakF1TVRFNE1TQXlNeTR3TWpBNFF6SXlMak01TWpNZ01qRXVNamM1TXlBeU15NHpNalVnTVRndU16VTNNU0F5TlM0Mk5Ea3pJREUyTGpZMk5qZERNall1TmpJNE5TQXhOUzQ1TlRRMUlESTNMamd3TnpZZ01UVXVORFF6TnlBeU9DNDVPRFl4SURFMUxqRTNNelpETWprdU5UTXpNU0F4TlM0d05EZ3pJRE14TGpFNU1qUWdNVFF1TnpZeE9TQXpNQzQyTXpnNUlERTBMamcxTkRKRE16QXVNREUyTlNBeE5DNDVOVGM1SURJNUxqTTRPQ0F4TlM0ek1qRXlJREk0TGpneE1qVWdNVFV1TlRZeU5VTXlOeTQyT0RVZ01UWXVNRE0xTWlBeU5pNDVNVFF5SURFMkxqWTROVGtnTWpZdU1qSTVNaUF4Tnk0M01ERTBRekkxTGpRNU9ERWdNVGd1TnpnMU1TQXlOUzR3T0RJMklESXdMakV5TkNBeU5TNHdOakkxSURJeExqUXpNRFpETWpVdU1EVTBNU0F5TVM0NU56VTJJREkxTGpBMU5ESWdNakl1T0RRd05TQXlOUzQzTlNBeU1pNDVOVEUwUXpJMkxqY3lNVElnTWpNdU1UQTJNaUF5Tnk0M016SXpJREl5TGpRM09EZ2dNamd1TkRrek1TQXlNUzQ1TmpVelF6TXhMakF6TURZZ01qQXVNalV5TlNBek15NHpOVGN5SURFNExqRXhNVGtnTXpVdU5EYzVNaUF4TlM0NU1UWTNRek0zTGpZME5TQXhNeTQyTnpZZ016a3VOalF5SURFeExqTXdOamdnTkRJdU1EWXlOU0E1TGpNeU5qTTRRelF5TGpnek5EUWdPQzQyT1RRNE1TQTBNeTQyTXpNNUlEZ3VNRGt6TURJZ05EUXVORE13TmlBM0xqUTVNekExUXpRMExqYzVPRFFnTnk0eU1UWXdNU0EwTlM0eE9EQTFJRFl1T0RnMU5EWWdORFV1TlRrM01pQTJMalkzTnpBNFF6UTFMamM0TmpVZ05pNDFPREkwTkNBME5TNHhNelUySURjdU1qVTJORElnTkRVdU1URXhNU0EzTGpJM056YzNRelF6TGpZNU5qRWdPQzQxTVRNNE5pQTBNaTR3TlRNNUlEa3VORFUzT0RrZ05EQXVOakU0TVNBeE1DNDJOalkzUXpNNExqazFPVE1nTVRJdU1EWXpNU0F6Tnk0MU9UQTFJREV6TGpjMk5EVWdNell1TkRrMk5TQXhOUzQyTXpFNVF6TTJMakF3TnpFZ01UWXVORFkzTlNBek5TNDFPVFl4SURFM0xqTXpNRFVnTXpVdU1ESTNPQ0F4T0M0eE1UZ3hRek0wTGprek16Y2dNVGd1TWpRNE5TQXpOQzQyT1RreklERTRMalUwTWpnZ016UXVPVE13TmlBeE9DNHlNRGd6UXpNMUxqUTFPRFlnTVRjdU5EUTBOU0F6Tmk0eE5UWXlJREUyTGpnd056UWdNell1T0RZeE1TQXhOaTR5TVRFNFF6TTRMakl3TnpFZ01UVXVNRGMwTlNBek9TNDJPVFkxSURFMExqRTVPVGdnTkRFdU16VXdOeUF4TXk0MU9ETXpRelF6TGpRNU9ETWdNVEl1TnpneklEUTFMamMzT0RnZ01USXVNVFU1TmlBME9DNHdOVFUySURFeExqZzNOVU0wT0M0NE1ESXpJREV4TGpjNE1UY2dORGN1TmpVMU15QXhNUzQ1TkRReklEUTNMalE1TXpFZ01URXVPVGt6TVVNME5TNHhOemsxSURFeUxqWTRPQ0EwTWk0NE5qZzFJREV6TGpVek56a2dOREF1TmpJeE5TQXhOQzQwTWpBeFF6TTVMak01TlRJZ01UUXVPVEF4TnlBek9DNHhOelUzSURFMUxqUXdPRE1nTXpZdU9UY3lNaUF4TlM0NU5EUTBRek0yTGpBNE5ESWdNVFl1TXpRd01TQXpOUzR4TlRnZ01UWXVOek01TXlBek5DNHpORGN5SURFM0xqSTRORGRETXpRdU1qQXdNaUF4Tnk0ek9ETTJJRE0wTGpBMk1qY2dNVGN1TkRrNU9DQXpNeTQ1TXpjMUlERTNMall5TlVNek15NDRNVEExSURFM0xqYzFNaUF6TkM0eU1UY3pJREUzTGpNNU56WWdNelF1TXpjeE5TQXhOeTR6TURVMlF6TTFMakV4TmpjZ01UWXVPRFl3TnlBek5TNDVNREF5SURFMkxqY3dORGdnTXpZdU56WXdOQ0F4Tmk0Mk5qWTNRek0zTGpRek56TWdNVFl1TmpNMk55QXpPQzQ1T1RZNUlERTJMalEzTWpJZ016a3VOREE1TnlBeE55NHlNVFV6UXpNNUxqWTVOelFnTVRjdU56TXpJRE01TGpRek1qRWdNVGd1TkRnMk5TQXpPUzR5T0RRM0lERTVRek01TGpBeE5EY2dNVGt1T1RReElETTRMamd6TVRjZ01qQXVPRGd4T1NBek9DNDVNak0ySURJeExqZzJPREZETXprdU1ERXlNaUF5TWk0NE1UZ3lJRE01TGpVeU5ERWdNak11TlRZMk9TQTBNQzR5T0RRM0lESTBMakV5T0RWRE5ESXVNVFl5T0NBeU5TNDFNVFE1SURRMExqWXhOakVnTWpVdU56ZzNNeUEwTmk0NE9ERTVJREkxTGpjME16RkRORGd1TWpnd09TQXlOUzQzTVRVM0lEUTVMalkyTXpRZ01qVXVOVFEyTVNBMU1TNHdNVEEwSURJMUxqRTFPVGRETlRJdU9EWTBNaUF5TkM0Mk1qZ2dOVFF1TlRZek9DQXlNeTQzTURVNUlEVTJMakl6TWpZZ01qSXVOell3TkVNMU9DNDBOVEF4SURJeExqVXdOREVnTmpBdU5qSTVNU0F5TUM0eU16QTJJRFl5TGpVZ01UZ3VOU0lnYzNSeWIydGxQU0ppYkhWbElpQnpkSEp2YTJVdGJHbHVaV05oY0QwaWNtOTFibVFpSUhOMGNtOXJaUzFzYVc1bGFtOXBiajBpY205MWJtUWlJQzgrQ2p3dmMzWm5QZz09Igp9"
-		);
+		// Set the NFT's personal message
+		tokenIdToMessage[newTokenId] = message;
 		console.log(
 			"An NFT w/ ID %s has been minted to %s",
 			newTokenId,
@@ -29,4 +69,33 @@ contract ClockNFT is ERC721URIStorage {
 		// Increment the counter for when the next NFT is minted.
 		Counters.increment(_tokenIds);
 	}
+
+	function tokenURI(uint256 tokenId)
+        public
+        view
+        virtual
+        override
+        returns (string memory)
+    {
+        require(
+            _exists(tokenId),
+            "ERC721Metadata: URI query for nonexistent token"
+        );
+        string memory svgNFT = assembleSvg(tokenId);
+        return string(
+                abi.encodePacked(
+                    "data:application/json;base64,",
+                    Base64.encode(
+                        bytes(
+                           abi.encodePacked(
+                                '{"name":"',
+                                "ClockNFT", // You can add whatever name here
+                                '", "description":"tick tock tick tock", "attributes":"", "image":"', svgToImageURI(svgNFT),'"}'
+                            )
+                        )
+                    )
+                )
+            );
+    }
+
 }
